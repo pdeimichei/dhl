@@ -34,13 +34,13 @@ DELIMITER       = ";"
 CONFIG_FILE     = Path.home() / ".dhl_spedizioni.json"
 ANA_FILENAME    = "anagrafica_spedizioni.csv"
 
-ANA_HEADERS = ["Rif.", "Tipo", "Descrizione", "Cod. Doganale", "U.M.", "Altro Prezzo", "Origine"]
+ANA_HEADERS = ["Rif.", "Tipo", "Descrizione", "Cod. Doganale", "U.M.", "Peso", "Altro Prezzo", "Origine"]
 DOC_HEADERS = ["Rif.", "Tipo", "Descrizione", "Cod. Doganale",
-               "Q.tà / Peso", "U.M.", "Prezzo", "Valuta",
+               "Q.tà", "Peso", "U.M.", "Prezzo", "Valuta",
                "Altro Prezzo", "", "Origine"]
 
-ANA_WIDTHS  = [5, 10, 54, 14, 6, 12, 8]
-DOC_WIDTHS  = [5, 10, 50, 14, 10, 6, 10, 7, 12, 4, 8]
+ANA_WIDTHS  = [5, 10, 54, 14, 6, 8, 12, 8]
+DOC_WIDTHS  = [5, 10, 50, 14, 8, 8, 6, 10, 7, 12, 4, 8]
 
 VALUTE = ["EUR", "USD", "CHF"]
 
@@ -584,15 +584,21 @@ class DocumentoWindow(tk.Toplevel):
 
         col_idx = 1
 
-        def ro_entry(var, width, col):
+        # Lockable (pre-filled from anagrafica) — editable with confirmation,
+        # changes apply only to this document, not back to the anagrafica.
+        def lockable_entry(var, width, col):
             e = tk.Entry(frame, textvariable=var, width=width,
                          font=("Arial", 10), bg=C_LOCKED, state="readonly",
                          readonlybackground=C_LOCKED, relief="flat",
                          highlightthickness=1, highlightbackground="#e8eaed")
             e.grid(row=0, column=col, padx=2, pady=3)
-            e.bind("<Button-1>", lambda _e, idx=i: self._select_doc_row(idx))
+            def on_click(_evt, w=e):
+                self._select_doc_row(i)
+                frame.after(10, lambda: self._try_unlock_doc_field(w))
+            e.bind("<Button-1>", on_click)
             return e
 
+        # Freely editable — user input fields (no confirmation needed)
         def rw_entry(var, width, col):
             e = tk.Entry(frame, textvariable=var, width=width,
                          font=("Arial", 10), bg="white", relief="flat",
@@ -601,10 +607,13 @@ class DocumentoWindow(tk.Toplevel):
             e.bind("<Button-1>", lambda _e, idx=i: self._select_doc_row(idx))
             return e
 
-        widgets["Rif."]         = ro_entry(vars_["Rif."],          DOC_WIDTHS[0],  col_idx);  col_idx += 1
-        widgets["Tipo"]         = ro_entry(vars_["Tipo"],           DOC_WIDTHS[1],  col_idx);  col_idx += 1
+        # DOC_HEADERS order: Rif. | Tipo | Descrizione | Cod. Doganale |
+        #                    Q.tà | Peso | U.M. | Prezzo | Valuta |
+        #                    Altro Prezzo | (vuoto) | Origine
+        widgets["Rif."]          = lockable_entry(vars_["Rif."],          DOC_WIDTHS[0],  col_idx);  col_idx += 1
+        widgets["Tipo"]          = lockable_entry(vars_["Tipo"],           DOC_WIDTHS[1],  col_idx);  col_idx += 1
 
-        # Descrizione — combobox
+        # Descrizione — combobox (always freely editable)
         desc_values = [p[2] for p in self._products]
         cb_desc = ttk.Combobox(frame, textvariable=vars_["Descrizione"],
                                values=desc_values, width=DOC_WIDTHS[2] - 2,
@@ -614,22 +623,23 @@ class DocumentoWindow(tk.Toplevel):
         cb_desc.bind("<Button-1>", lambda _e, idx=i: self._select_doc_row(idx))
         widgets["Descrizione"] = cb_desc
 
-        widgets["Cod. Doganale"] = ro_entry(vars_["Cod. Doganale"], DOC_WIDTHS[3],  col_idx);  col_idx += 1
-        widgets["Q.tà / Peso"]  = rw_entry(vars_["Q.tà / Peso"],   DOC_WIDTHS[4],  col_idx);  col_idx += 1
-        widgets["U.M."]         = ro_entry(vars_["U.M."],           DOC_WIDTHS[5],  col_idx);  col_idx += 1
-        widgets["Prezzo"]       = rw_entry(vars_["Prezzo"],         DOC_WIDTHS[6],  col_idx);  col_idx += 1
+        widgets["Cod. Doganale"] = lockable_entry(vars_["Cod. Doganale"], DOC_WIDTHS[3],  col_idx);  col_idx += 1
+        widgets["Q.tà"]          = rw_entry(vars_["Q.tà"],                DOC_WIDTHS[4],  col_idx);  col_idx += 1
+        widgets["Peso"]          = lockable_entry(vars_["Peso"],           DOC_WIDTHS[5],  col_idx);  col_idx += 1
+        widgets["U.M."]          = lockable_entry(vars_["U.M."],           DOC_WIDTHS[6],  col_idx);  col_idx += 1
+        widgets["Prezzo"]        = rw_entry(vars_["Prezzo"],               DOC_WIDTHS[7],  col_idx);  col_idx += 1
 
-        # Valuta — combobox
+        # Valuta — combobox (always freely editable)
         cb_val = ttk.Combobox(frame, textvariable=vars_["Valuta"],
-                              values=VALUTE, width=DOC_WIDTHS[7] - 2,
+                              values=VALUTE, width=DOC_WIDTHS[8] - 2,
                               font=("Arial", 10), state="readonly")
         cb_val.grid(row=0, column=col_idx, padx=2, pady=3);  col_idx += 1
         cb_val.bind("<Button-1>", lambda _e, idx=i: self._select_doc_row(idx))
         widgets["Valuta"] = cb_val
 
-        widgets["Altro Prezzo"] = ro_entry(vars_["Altro Prezzo"],   DOC_WIDTHS[8],  col_idx);  col_idx += 1
-        widgets[""]             = ro_entry(vars_[""],               DOC_WIDTHS[9],  col_idx);  col_idx += 1
-        widgets["Origine"]      = ro_entry(vars_["Origine"],        DOC_WIDTHS[10], col_idx)
+        widgets["Altro Prezzo"]  = lockable_entry(vars_["Altro Prezzo"],   DOC_WIDTHS[9],  col_idx);  col_idx += 1
+        widgets[""]              = lockable_entry(vars_[""],               DOC_WIDTHS[10], col_idx);  col_idx += 1
+        widgets["Origine"]       = lockable_entry(vars_["Origine"],        DOC_WIDTHS[11], col_idx)
 
         self._doc_rows.append({"frame": frame, "vars": vars_, "widgets": widgets, "bg": bg})
         self._canvas.after(60, lambda: self._canvas.yview_moveto(1.0))
@@ -642,11 +652,40 @@ class DocumentoWindow(tk.Toplevel):
         product = next((p for p in self._products if p[2] == desc), None)
         if product is None:
             return
-        rif, tipo, _, cod, um, altro, origine = (product + [""] * 7)[:7]
+        # ANA_HEADERS: Rif. | Tipo | Descrizione | Cod. Doganale | U.M. | Peso | Altro Prezzo | Origine
+        rif, tipo, _, cod, um, peso, altro, origine = (product + [""] * 8)[:8]
         for key, val in [("Rif.", rif), ("Tipo", tipo),
                          ("Cod. Doganale", cod), ("U.M.", um),
-                         ("Altro Prezzo", altro), ("Origine", origine)]:
+                         ("Peso", peso), ("Altro Prezzo", altro), ("Origine", origine)]:
             row["vars"][key].set(val)
+
+    # ── Blocco/sblocco campi documento ───────────────────────────────────────
+    def _try_unlock_doc_field(self, entry: tk.Entry):
+        """Chiede conferma prima di rendere editabile un campo pre-compilato.
+        Le modifiche rimangono solo nel documento corrente, non nell'anagrafica."""
+        if entry.cget("state") == "normal":
+            return  # già in modifica
+        if not messagebox.askyesno(
+                "Modifica campo",
+                "Sei sicuro di voler modificare questo campo?\n\n"
+                "La modifica sarà applicata solo a questo documento.\n"
+                "L'anagrafica prodotti non verrà modificata.",
+                parent=self):
+            return
+        entry.configure(state="normal", bg=C_UNLOCKED,
+                        readonlybackground=C_UNLOCKED, cursor="xterm",
+                        highlightbackground="#f9ca24")
+        entry.focus_set()
+        entry.bind("<Return>",   lambda _e, w=entry: self._lock_doc_field(w))
+        entry.bind("<FocusOut>", lambda _e, w=entry: self._lock_doc_field(w))
+
+    def _lock_doc_field(self, entry: tk.Entry):
+        if entry.cget("state") == "readonly":
+            return
+        entry.configure(state="readonly", bg=C_LOCKED,
+                        readonlybackground=C_LOCKED, cursor="arrow",
+                        highlightbackground="#e8eaed")
+        self._schedule_autosave()
 
     # ── Selezione riga ────────────────────────────────────────────────────────
     def _select_doc_row(self, idx: int):
@@ -766,7 +805,9 @@ class DocumentoWindow(tk.Toplevel):
                                   textColor=colors.HexColor(C_HEADER_BG), spaceAfter=4)
         s_style  = ParagraphStyle("S", parent=styles["Normal"], fontSize=9,
                                   textColor=colors.HexColor(C_SUBTEXT), spaceAfter=12)
-        c_style  = ParagraphStyle("C", parent=styles["Normal"], fontSize=8, leading=10)
+        c_style  = ParagraphStyle("C",  parent=styles["Normal"], fontSize=8, leading=10)
+        ch_style = ParagraphStyle("CH", parent=styles["Normal"], fontSize=8, leading=10,
+                                  textColor=colors.white)
 
         story = [
             Paragraph(filename, t_style),
@@ -777,7 +818,7 @@ class DocumentoWindow(tk.Toplevel):
         vis_headers = [h for h in DOC_HEADERS if h != ""]
         vis_indices  = [i for i, h in enumerate(DOC_HEADERS) if h != ""]
 
-        table_data = [[Paragraph(f"<b>{h}</b>", c_style) for h in vis_headers]]
+        table_data = [[Paragraph(f"<b>{h}</b>", ch_style) for h in vis_headers]]
         for row in self._doc_rows:
             table_data.append([
                 Paragraph(row["vars"][DOC_HEADERS[i]].get(), c_style)
