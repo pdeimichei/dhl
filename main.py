@@ -549,7 +549,8 @@ class DocumentoWindow(tk.Toplevel):
         tk.Label(hf, text="#", width=3, bg=C_HEADER_BG, fg=C_HEADER_FG,
                  font=("Arial", 9, "bold")).grid(row=0, column=0, padx=(6, 2), pady=5)
         for j, (h, w) in enumerate(zip(DOC_HEADERS, DOC_WIDTHS)):
-            tk.Label(hf, text=h, width=w, bg=C_HEADER_BG, fg=C_HEADER_FG,
+            label = "" if h == "Blank" else h   # blank column has no visible header
+            tk.Label(hf, text=label, width=w, bg=C_HEADER_BG, fg=C_HEADER_FG,
                      font=("Arial", 9, "bold"), anchor="center"
                      ).grid(row=0, column=j + 1, padx=2, pady=5)
 
@@ -575,7 +576,7 @@ class DocumentoWindow(tk.Toplevel):
         vars_["Rif."].set("1")
         vars_["Tipo"].set("INV_ITEM")
         vars_["Valuta"].set("EUR")
-        vars_["Blank"].set("-")
+        vars_["Blank"].set("")  # always empty per customer upload requirement
 
         widgets = {}
 
@@ -639,7 +640,14 @@ class DocumentoWindow(tk.Toplevel):
         cb_val.bind("<Button-1>", lambda _e, idx=i: self._select_doc_row(idx))
         widgets["Valuta"] = cb_val
 
-        widgets["Blank"]         = lockable_entry(vars_["Blank"],           DOC_WIDTHS[9],  col_idx);  col_idx += 1
+        # Blank column: always empty, not editable, no label
+        _blank_e = tk.Entry(frame, textvariable=vars_["Blank"], width=DOC_WIDTHS[9],
+                            font=("Arial", 10), bg=C_LOCKED, state="readonly",
+                            readonlybackground=C_LOCKED, relief="flat",
+                            highlightthickness=0)
+        _blank_e.grid(row=0, column=col_idx, padx=2, pady=3)
+        _blank_e.bind("<Button-1>", lambda _e, idx=i: self._select_doc_row(idx))
+        widgets["Blank"] = _blank_e;  col_idx += 1
         widgets["Origine"]       = lockable_entry(vars_["Origine"],        DOC_WIDTHS[10], col_idx)
 
         self._doc_rows.append({"frame": frame, "vars": vars_, "widgets": widgets, "bg": bg})
