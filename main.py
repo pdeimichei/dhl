@@ -34,13 +34,13 @@ DELIMITER       = ";"
 CONFIG_FILE     = Path.home() / ".dhl_spedizioni.json"
 ANA_FILENAME    = "anagrafica_spedizioni.csv"
 
-ANA_HEADERS = ["Rif.", "Tipo", "Descrizione", "Cod. Doganale", "U.M.", "Peso", "Altro Prezzo", "Origine"]
+ANA_HEADERS = ["Rif.", "Tipo", "Descrizione", "Cod. Doganale", "U.M.", "Peso", "Origine"]
 DOC_HEADERS = ["Rif.", "Tipo", "Descrizione", "Cod. Doganale",
                "Q.tà", "Peso", "U.M.", "Prezzo", "Valuta",
-               "Altro Prezzo", "", "Origine"]
+               "Blank", "Origine"]
 
-ANA_WIDTHS  = [5, 10, 54, 14, 6, 8, 12, 8]
-DOC_WIDTHS  = [5, 10, 50, 14, 8, 8, 6, 10, 7, 12, 4, 8]
+ANA_WIDTHS  = [5, 10, 54, 14, 6, 8, 8]
+DOC_WIDTHS  = [5, 10, 50, 14, 8, 8, 6, 10, 7, 6, 8]
 
 VALUTE = ["EUR", "USD", "CHF"]
 
@@ -287,7 +287,8 @@ class AnagraficaWindow(tk.Toplevel):
         else:
             with open(path, newline="", encoding="utf-8-sig") as f:
                 all_rows = list(csv.reader(f, delimiter=DELIMITER))
-            data = all_rows[1:] if all_rows and all_rows[0] == ANA_HEADERS else all_rows
+            # Skip header row by checking first cell only (robust across schema changes)
+            data = all_rows[1:] if all_rows and all_rows[0] and all_rows[0][0] == ANA_HEADERS[0] else all_rows
             n = len(ANA_HEADERS)
             self._rows = [r[:n] + [""] * max(0, n - len(r)) for r in data if any(c.strip() for c in r)]
         self._rebuild_table()
@@ -402,7 +403,7 @@ class AnagraficaWindow(tk.Toplevel):
 
     # ── Aggiungi / Elimina ────────────────────────────────────────────────────
     def _add_row(self):
-        new_row = ["1", "INV_ITEM", "", "", "PCS", "", "IT"]
+        new_row = ["1", "INV_ITEM", "", "", "PCS", "", "IT"]  # Rif.|Tipo|Desc|Cod|UM|Peso|Origine
         self._rows.append(new_row)
         i = len(self._rows) - 1
         self._build_ana_row(i, new_row)
@@ -473,7 +474,7 @@ class DocumentoWindow(tk.Toplevel):
             return
         with open(path, newline="", encoding="utf-8-sig") as f:
             rows = list(csv.reader(f, delimiter=DELIMITER))
-        if rows and rows[0] == ANA_HEADERS:
+        if rows and rows[0] and rows[0][0] == ANA_HEADERS[0]:
             rows = rows[1:]
         n = len(ANA_HEADERS)
         self._products = [r[:n] + [""] * max(0, n - len(r)) for r in rows if any(c.strip() for c in r)]
@@ -574,6 +575,7 @@ class DocumentoWindow(tk.Toplevel):
         vars_["Rif."].set("1")
         vars_["Tipo"].set("INV_ITEM")
         vars_["Valuta"].set("EUR")
+        vars_["Blank"].set("-")
 
         widgets = {}
 
@@ -637,9 +639,8 @@ class DocumentoWindow(tk.Toplevel):
         cb_val.bind("<Button-1>", lambda _e, idx=i: self._select_doc_row(idx))
         widgets["Valuta"] = cb_val
 
-        widgets["Altro Prezzo"]  = lockable_entry(vars_["Altro Prezzo"],   DOC_WIDTHS[9],  col_idx);  col_idx += 1
-        widgets[""]              = lockable_entry(vars_[""],               DOC_WIDTHS[10], col_idx);  col_idx += 1
-        widgets["Origine"]       = lockable_entry(vars_["Origine"],        DOC_WIDTHS[11], col_idx)
+        widgets["Blank"]         = lockable_entry(vars_["Blank"],           DOC_WIDTHS[9],  col_idx);  col_idx += 1
+        widgets["Origine"]       = lockable_entry(vars_["Origine"],        DOC_WIDTHS[10], col_idx)
 
         self._doc_rows.append({"frame": frame, "vars": vars_, "widgets": widgets, "bg": bg})
         self._canvas.after(60, lambda: self._canvas.yview_moveto(1.0))
@@ -652,11 +653,11 @@ class DocumentoWindow(tk.Toplevel):
         product = next((p for p in self._products if p[2] == desc), None)
         if product is None:
             return
-        # ANA_HEADERS: Rif. | Tipo | Descrizione | Cod. Doganale | U.M. | Peso | Altro Prezzo | Origine
-        rif, tipo, _, cod, um, peso, altro, origine = (product + [""] * 8)[:8]
+        # ANA_HEADERS: Rif. | Tipo | Descrizione | Cod. Doganale | U.M. | Peso | Origine
+        rif, tipo, _, cod, um, peso, origine = (product + [""] * 7)[:7]
         for key, val in [("Rif.", rif), ("Tipo", tipo),
                          ("Cod. Doganale", cod), ("U.M.", um),
-                         ("Peso", peso), ("Altro Prezzo", altro), ("Origine", origine)]:
+                         ("Peso", peso), ("Origine", origine)]:
             row["vars"][key].set(val)
 
     # ── Blocco/sblocco campi documento ───────────────────────────────────────
