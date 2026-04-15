@@ -30,7 +30,7 @@ except ImportError:
     REPORTLAB_OK = False
 
 # ── Costanti ──────────────────────────────────────────────────────────────────
-VERSION         = "1.0.6"
+VERSION         = "1.0.7"
 DELIMITER       = ";"
 CONFIG_FILE     = Path.home() / ".dhl_spedizioni.json"
 ANA_FILENAME    = "anagrafica_spedizioni.csv"
@@ -180,10 +180,10 @@ class SettingsDialog(tk.Toplevel):
 
     def _build(self):
         tk.Label(self, text="Cartella di lavoro", font=("Arial", 10, "bold"),
-                 bg=C_BG, fg=C_HEADER_BG, padx=20, pady=(15, 4)).pack(anchor="w")
+                 bg=C_BG, fg=C_HEADER_BG).pack(anchor="w", padx=20, pady=(15, 4))
 
-        row = tk.Frame(self, bg=C_BG, padx=20, pady=4)
-        row.pack(fill="x")
+        row = tk.Frame(self, bg=C_BG)
+        row.pack(fill="x", padx=20, pady=4)
 
         self._folder_var = tk.StringVar(value=self._config.get_folder() or "")
         tk.Entry(row, textvariable=self._folder_var, width=48,
