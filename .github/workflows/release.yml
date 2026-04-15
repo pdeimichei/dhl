@@ -34,9 +34,12 @@ jobs:
 
   # ── macOS build ──────────────────────────────────────────────────────────
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Tcl/Tk (required for tkinter)
+        run: brew install tcl-tk python-tk@3.11
 
       - uses: actions/setup-python@v5
         with:

@@ -30,7 +30,7 @@ except ImportError:
     REPORTLAB_OK = False
 
 # ── Costanti ──────────────────────────────────────────────────────────────────
-VERSION         = "1.0.4"
+VERSION         = "1.0.5"
 DELIMITER       = ";"
 CONFIG_FILE     = Path.home() / ".dhl_spedizioni.json"
 ANA_FILENAME    = "anagrafica_spedizioni.csv"
