@@ -30,17 +30,18 @@ except ImportError:
     REPORTLAB_OK = False
 
 # ── Costanti ──────────────────────────────────────────────────────────────────
+VERSION         = "1.0.4"
 DELIMITER       = ";"
 CONFIG_FILE     = Path.home() / ".dhl_spedizioni.json"
 ANA_FILENAME    = "anagrafica_spedizioni.csv"
 
 ANA_HEADERS = ["Rif.", "Tipo", "Descrizione", "Cod. Doganale", "U.M.", "Peso", "Origine"]
 DOC_HEADERS = ["Rif.", "Tipo", "Descrizione", "Cod. Doganale",
-               "Q.tà", "Peso", "U.M.", "Prezzo", "Valuta",
-               "Blank", "Origine"]
+               "Q.tà", "U.M.", "Prezzo", "Valuta",
+               "Peso", "Blank", "Origine"]
 
 ANA_WIDTHS  = [5, 10, 54, 14, 6, 8, 8]
-DOC_WIDTHS  = [5, 10, 50, 14, 8, 8, 6, 10, 7, 6, 8]
+DOC_WIDTHS  = [5, 10, 50, 14, 8, 6, 10, 7, 8, 6, 8]
 
 VALUTE = ["EUR", "USD", "CHF"]
 
@@ -169,6 +170,7 @@ class SettingsDialog(tk.Toplevel):
     def __init__(self, parent, config: ConfigManager):
         super().__init__(parent)
         self.title("Impostazioni")
+        self.geometry("560x210")
         self.resizable(False, False)
         self.grab_set()
         self.configure(bg=C_BG)
@@ -199,6 +201,8 @@ class SettingsDialog(tk.Toplevel):
 
         foot = tk.Frame(self, bg=C_BG, pady=8, padx=14)
         foot.pack(fill="x")
+        tk.Label(foot, text=f"DHL Spedizioni  v{VERSION}", font=("Arial", 8),
+                 fg="#b2bec3", bg=C_BG).pack(side="left")
         _btn(foot, "Chiudi", "#7f8c8d", self.destroy, side="right", padx=0)
 
     def _browse(self):
@@ -628,9 +632,8 @@ class DocumentoWindow(tk.Toplevel):
 
         widgets["Cod. Doganale"] = lockable_entry(vars_["Cod. Doganale"], DOC_WIDTHS[3],  col_idx);  col_idx += 1
         widgets["Q.tà"]          = rw_entry(vars_["Q.tà"],                DOC_WIDTHS[4],  col_idx);  col_idx += 1
-        widgets["Peso"]          = lockable_entry(vars_["Peso"],           DOC_WIDTHS[5],  col_idx);  col_idx += 1
-        widgets["U.M."]          = lockable_entry(vars_["U.M."],           DOC_WIDTHS[6],  col_idx);  col_idx += 1
-        widgets["Prezzo"]        = rw_entry(vars_["Prezzo"],               DOC_WIDTHS[7],  col_idx);  col_idx += 1
+        widgets["U.M."]          = lockable_entry(vars_["U.M."],           DOC_WIDTHS[5],  col_idx);  col_idx += 1
+        widgets["Prezzo"]        = rw_entry(vars_["Prezzo"],               DOC_WIDTHS[6],  col_idx);  col_idx += 1
 
         # Valuta — combobox (always freely editable)
         cb_val = ttk.Combobox(frame, textvariable=vars_["Valuta"],
@@ -647,6 +650,7 @@ class DocumentoWindow(tk.Toplevel):
                             highlightthickness=0)
         _blank_e.grid(row=0, column=col_idx, padx=2, pady=3)
         _blank_e.bind("<Button-1>", lambda _e, idx=i: self._select_doc_row(idx))
+        widgets["Peso"]          = lockable_entry(vars_["Peso"],           DOC_WIDTHS[8],  col_idx);  col_idx += 1
         widgets["Blank"] = _blank_e;  col_idx += 1
         widgets["Origine"]       = lockable_entry(vars_["Origine"],        DOC_WIDTHS[10], col_idx)
 
@@ -872,7 +876,7 @@ class DocumentoWindow(tk.Toplevel):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("DHL Spedizioni")
+        self.title(f"DHL Spedizioni  v{VERSION}")
         self.geometry("460x340")
         self.resizable(False, False)
         self.configure(bg=C_BG)
@@ -913,7 +917,7 @@ class App(tk.Tk):
         self._folder_label = tk.StringVar()
         self._refresh_folder_label()
         tk.Label(bottom, textvariable=self._folder_label,
-                 bg="#f7f8fa", fg="#b2bec3", font=("Arial", 8),
+                 bg="#f7f8fa", fg="#636e72", font=("Arial", 10),
                  anchor="w").pack(side="left", fill="x", expand=True)
         ttk.Button(bottom, text="⚙  Impostazioni",
                    command=self._open_settings,
