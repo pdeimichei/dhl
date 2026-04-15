@@ -34,16 +34,16 @@ jobs:
 
   # ── macOS build ──────────────────────────────────────────────────────────
   build-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Tcl/Tk (required for tkinter)
-        run: brew install tcl-tk python-tk@3.11
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Install Tk for tkinter
+        run: brew install python-tk@3.11
 
       - name: Install dependencies
         run: pip install pyinstaller reportlab
