@@ -30,7 +30,7 @@ except ImportError:
     REPORTLAB_OK = False
 
 # ── Costanti ──────────────────────────────────────────────────────────────────
-VERSION         = "1.0.7"
+VERSION         = "1.0.8"
 DELIMITER       = ";"
 CONFIG_FILE     = Path.home() / ".dhl_spedizioni.json"
 ANA_FILENAME    = "anagrafica_spedizioni.csv"
@@ -462,12 +462,12 @@ class DocumentoWindow(tk.Toplevel):
         self._products: list[list[str]] = []
         self._doc_rows: list[dict] = []
         self._selected_row: int | None = None
-        self._created_at: datetime | None = None
         self._last_saved: datetime | None = None
-        self._autosave_pending = False
+        self._dirty = False
         self._load_products()
         self._build_ui()
         self.transient(parent)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _load_products(self):
         folder = self._config.get_folder()
@@ -585,7 +585,7 @@ class DocumentoWindow(tk.Toplevel):
         widgets = {}
 
         def make_trace(v):
-            v.trace_add("write", self._schedule_autosave)
+            v.trace_add("write", lambda *_: self._mark_dirty())
         for h in DOC_HEADERS:
             make_trace(vars_[h])
 
@@ -698,7 +698,7 @@ class DocumentoWindow(tk.Toplevel):
         entry.configure(state="readonly", bg=C_LOCKED,
                         readonlybackground=C_LOCKED, cursor="arrow",
                         highlightbackground="#e8eaed")
-        self._schedule_autosave()
+        self._mark_dirty()
 
     # ── Selezione riga ────────────────────────────────────────────────────────
     def _select_doc_row(self, idx: int):
@@ -741,12 +741,12 @@ class DocumentoWindow(tk.Toplevel):
                 if isinstance(child, tk.Label):
                     child.configure(text=str(i + 1))
                     break
-        self._schedule_autosave()
+        self._mark_dirty()
         self._update_status()
 
     # ── Nome file & salvataggio ───────────────────────────────────────────────
     def _on_filename_change(self, *_):
-        self._schedule_autosave()
+        self._mark_dirty()
 
     def _get_output_path(self) -> str | None:
         folder = self._config.get_folder()
@@ -755,23 +755,10 @@ class DocumentoWindow(tk.Toplevel):
             return None
         return os.path.join(folder, name if name.endswith(".csv") else name + ".csv")
 
-    def _schedule_autosave(self, *_):
-        if self._autosave_pending:
-            return
-        self._autosave_pending = True
-        self.after(600, self._autosave)
-
-    def _autosave(self):
-        self._autosave_pending = False
-        path = self._get_output_path()
-        if not path:
-            return
-        self._write_csv(path)
-        now = datetime.now()
-        if self._created_at is None:
-            self._created_at = now
-        self._last_saved = now
-        self._hdr_status.set(f"✓ Salvato automaticamente — {now.strftime('%H:%M:%S')}")
+    def _mark_dirty(self):
+        if not self._dirty:
+            self._dirty = True
+            self._hdr_status.set("● Modifiche non salvate")
 
     def _save_csv(self):
         path = self._get_output_path()
@@ -782,11 +769,23 @@ class DocumentoWindow(tk.Toplevel):
             return
         self._write_csv(path)
         now = datetime.now()
-        if self._created_at is None:
-            self._created_at = now
         self._last_saved = now
+        self._dirty = False
         self._hdr_status.set(f"✓ Salvato — {now.strftime('%H:%M:%S')}")
-        messagebox.showinfo("Salvato", f"Documento salvato in:\n{path}", parent=self)
+
+    def _on_close(self):
+        if self._dirty and self._doc_rows:
+            answer = messagebox.askyesnocancel(
+                "Modifiche non salvate",
+                "Il documento ha modifiche non salvate.\n\nVuoi salvare prima di chiudere?",
+                parent=self)
+            if answer is None:   # Cancel
+                return
+            if answer:           # Yes → save then close
+                self._save_csv()
+                if self._dirty:  # save failed (no filename etc.) — stay open
+                    return
+        self.destroy()
 
     def _write_csv(self, path: str):
         with open(path, "w", newline="", encoding="utf-8") as f:
@@ -807,8 +806,8 @@ class DocumentoWindow(tk.Toplevel):
         folder      = self._config.get_folder() or tempfile.gettempdir()
         pdf_name    = filename if filename.endswith(".pdf") else filename + ".pdf"
         pdf_path    = os.path.join(folder, pdf_name)
-        created_str = (self._created_at or datetime.now()).strftime("%d/%m/%Y %H:%M")
-        modified_str= (self._last_saved  or datetime.now()).strftime("%d/%m/%Y %H:%M")
+        created_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+        modified_str= (self._last_saved or datetime.now()).strftime("%d/%m/%Y %H:%M")
 
         doc = SimpleDocTemplate(pdf_path, pagesize=landscape(A4),
                                 leftMargin=1.5*cm, rightMargin=1.5*cm,
